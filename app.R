@@ -12,7 +12,7 @@ library(future)
 library(shinyjs)
 
 # Enable parallel processing
-plan(multisession)
+future::plan(multisession)
 
 ui <- bslib::page_sidebar(
   title = shiny::tags$span(style = "color: white; font-weight: bold;", "iSci GHCN-Daily Data Portal"),
