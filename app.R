@@ -6,6 +6,37 @@ library(dplyr)
 library(ghcn)  # Your custom package
 library(DT)
 
+# Define the API check function
+check_api_on_startup <- function() {
+  base_url <- "https://www.ncei.noaa.gov/cdo-web/api/v2"
+  
+  tryCatch({
+    response <- httr::GET(
+      url = file.path(base_url, "stations"),
+      query = list(
+        datasetid = "GHCND",
+        limit = 5
+      ),
+      httr::add_headers("token" = "jNgLeoBbPesCsXNbybBUwfTKPuXktBGS"),
+      httr::timeout(20)
+    )
+    
+    if (httr::status_code(response) != 200) {
+      stop(paste("API request failed with status code:", httr::status_code(response)))
+    }
+    
+  }, error = function(e) {
+    error_message <- if (inherits(e, "timeout")) {
+      "The server was unresponsive and timed out after 20 seconds."
+    } else {
+      paste("The server failed with the following error:", e$message)
+    }
+    
+    # Store the error message to be displayed later
+    options(api_error_message = error_message)
+  })
+}
+
 ui <- bslib::page_sidebar(
     title = shiny::tags$span(style = "color: white; font-weight: bold;", "iSci GHCN-Daily Data Portal"),
     theme = bslib::bs_theme(
@@ -77,6 +108,19 @@ ui <- bslib::page_sidebar(
 )
 
 server <- function(input, output, session) {
+  
+  # server status startup check
+  observe({
+    if (!is.null(getOption("api_error_message"))) {
+      shinyalert::shinyalert(
+        title = "API Error",
+        text = getOption("api_error_message"),
+        type = "error"
+      )
+      # Clear the error message after displaying
+      options(api_error_message = NULL)
+    }
+  })
     
     # Reactive values for storing the clicked point and selected station
     clicked_point <- shiny::reactiveVal(NULL)
@@ -155,34 +199,40 @@ server <- function(input, output, session) {
     
     # Render station information card
     output$station_info <- shiny::renderUI({
-        station <- selected_station()
-        if (is.null(station)) {
-            return(shiny::p("'Search Stations' after selecting a map location. Then click on a station marker to view its information."))
-        }
-        
-        shiny::tagList(
-            shiny::h3(station$name),
-            shiny::tags$div(
-                style = "line-height: 1.2; margin-bottom: 10px;",
-                shiny::p(shiny::strong("ID: "), station$id),
-                shiny::p(shiny::strong("Date Range: "), paste(station$mindate, "to", station$maxdate)),
-                shiny::p(shiny::strong("Distance: "), sprintf("%.2f km", station$distance * 111)),  # Approximate conversion to km
-                shiny::p(shiny::strong("Latitude: "), station$latitude),
-                shiny::p(shiny::strong("Longitude: "), station$longitude),
-                shiny::p(shiny::strong("Elevation: "), station$elevation, " m")
-            ),
-            shiny::h4("Available Variables:"),
-            shiny::tags$ul(
-                style = "padding-left: 20px; margin-top: 5px;",
-                lapply(strsplit(station$available_vars, ", ")[[1]], function(var) {
-                    description <- ghcn::ghcn_daily_datatypes$description[ghcn::ghcn_daily_datatypes$datatype == var]
-                    shiny::tags$li(
-                        style = "margin-bottom: 5px;",
-                        shiny::strong(var), ": ", description
-                    )
-                })
-            )
+      station <- selected_station()
+      if (is.null(station)) {
+        return(shiny::p("'Search Stations' after selecting a map location. Then click on a station marker to view its information."))
+      }
+      
+      # Split available variables
+      available_vars <- strsplit(station$available_vars, ", ")[[1]]
+      
+      shiny::tagList(
+        shiny::h3(station$name),
+        shiny::tags$div(
+          style = "line-height: 1.2; margin-bottom: 10px;",
+          shiny::p(shiny::strong("ID: "), station$id),
+          shiny::p(shiny::strong("Date Range: "), paste(station$mindate, "to", station$maxdate)),
+          shiny::p(shiny::strong("Distance: "), sprintf("%.2f km", station$distance * 111)),  # Approximate conversion to km
+          shiny::p(shiny::strong("Latitude: "), station$latitude),
+          shiny::p(shiny::strong("Longitude: "), station$longitude),
+          shiny::p(shiny::strong("Elevation: "), station$elevation, " m")
+        ),
+        shiny::h4("Available Variables:"),
+        shiny::tags$div(
+          style = "max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;",
+          shiny::tags$ul(
+            style = "padding-left: 20px; margin-top: 5px;",
+            lapply(available_vars, function(var) {
+              description <- ghcn::ghcn_daily_datatypes$description[ghcn::ghcn_daily_datatypes$datatype == var]
+              shiny::tags$li(
+                style = "margin-bottom: 5px;",
+                shiny::strong(var), ": ", description
+              )
+            })
+          )
         )
+      )
     })
     
     # Reactive expression for getting data
@@ -240,4 +290,4 @@ server <- function(input, output, session) {
     })
 }
 
-shiny::shinyApp(ui, server)
+shiny::shinyApp(ui, server, onStart = check_api_on_startup)
