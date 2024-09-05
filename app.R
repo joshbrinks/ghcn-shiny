@@ -227,18 +227,15 @@ server <- function(input, output, session) {
         shiny::p(shiny::strong("Elevation: "), station$elevation, " m")
       ),
       shiny::h4("Available Variables:"),
-      shiny::tags$div(
-        style = "max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;",
-        shiny::tags$ul(
-          style = "padding-left: 20px; margin-top: 5px;",
-          lapply(available_vars, function(var) {
-            description <- ghcn::ghcn_daily_datatypes$description[ghcn::ghcn_daily_datatypes$datatype == var]
-            shiny::tags$li(
-              style = "margin-bottom: 5px;",
-              shiny::strong(var), ": ", description
-            )
-          })
-        )
+      shiny::tags$ul(
+        style = "padding-left: 20px; margin-top: 5px;",
+        lapply(strsplit(station$available_vars, ", ")[[1]], function(var) {
+          description <- ghcn::ghcn_daily_datatypes$description[ghcn::ghcn_daily_datatypes$datatype == var]
+          shiny::tags$li(
+            style = "margin-bottom: 5px;",
+            shiny::strong(var), ": ", description
+          )
+        })
       )
     )
   })
