@@ -216,9 +216,9 @@ server <- function(input, output, session) {
     available_vars <- strsplit(station$available_vars, ", ")[[1]]
     
     shiny::tagList(
-      shiny::h3(station$name),
+      shiny::h5(station$name),
       shiny::tags$div(
-        style = "line-height: 1.2; margin-bottom: 10px;",
+        style = "line-height: 1.2; margin-bottom: 5px;",
         shiny::p(shiny::strong("ID: "), station$id),
         shiny::p(shiny::strong("Date Range: "), paste(station$mindate, "to", station$maxdate)),
         shiny::p(shiny::strong("Distance: "), sprintf("%.2f km", station$distance * 111)),  # Approximate conversion to km
@@ -226,13 +226,13 @@ server <- function(input, output, session) {
         shiny::p(shiny::strong("Longitude: "), station$longitude),
         shiny::p(shiny::strong("Elevation: "), station$elevation, " m")
       ),
-      shiny::h4("Available Variables:"),
+      shiny::h6("Available Variables:"),
       shiny::tags$ul(
-        style = "padding-left: 20px; margin-top: 5px;",
+        style = "padding-left: 20px; margin-top: 2px;",
         lapply(strsplit(station$available_vars, ", ")[[1]], function(var) {
           description <- ghcn::ghcn_daily_datatypes$description[ghcn::ghcn_daily_datatypes$datatype == var]
           shiny::tags$li(
-            style = "margin-bottom: 5px;",
+            style = "margin-bottom: 2px;",
             shiny::strong(var), ": ", description
           )
         })
